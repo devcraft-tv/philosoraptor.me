@@ -1,21 +1,32 @@
 package main
 
 import (
-	"io"
 	"net/http"
+	"text/template"
 
 	"github.com/gorilla/mux"
 )
 
+var htmlTemplates *template.Template
+
 func main() {
 	router := mux.NewRouter()
+	htmlTemplates = template.Must(template.ParseGlob("templates/*"))
 
-	router.HandleFunc("/", handler)
+	router.HandleFunc("/", homePage)
+	router.PathPrefix("/assets/").Handler(staticHandler())
 	http.Handle("/", router)
 
 	http.ListenAndServe(":8000", nil)
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	io.WriteString(w, "Hello world!")
+func staticHandler() http.Handler {
+	return http.FileServer(http.Dir("static/"))
+}
+
+func homePage(w http.ResponseWriter, r *http.Request) {
+	err := htmlTemplates.ExecuteTemplate(w, "index", nil)
+	if err != nil {
+		panic(err)
+	}
 }
