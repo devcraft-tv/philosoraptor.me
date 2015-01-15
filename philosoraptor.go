@@ -17,7 +17,7 @@ func main() {
 	router.PathPrefix("/assets/").Handler(staticHandler())
 	http.Handle("/", router)
 
-	http.ListenAndServe(":8000", nil)
+	http.ListenAndServe(":8001", nil)
 }
 
 func staticHandler() http.Handler {
