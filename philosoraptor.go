@@ -1,14 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"text/template"
 
 	"code.google.com/p/freetype-go/freetype"
 	"code.google.com/p/freetype-go/freetype/truetype"
 	"github.com/devcraft-tv/philosoraptor/annotator"
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 )
 
 var font *truetype.Font
@@ -21,12 +24,17 @@ func main() {
 	htmlTemplates = template.Must(template.ParseGlob("templates/*"))
 	font = readFont()
 	templateFile = readTemplateFile()
+	loadEnvVars()
 
 	router.HandleFunc("/", homePage)
 	router.HandleFunc("/generate", handleForm).Methods("POST")
 	router.PathPrefix("/assets/").Handler(staticHandler())
 	http.Handle("/", router)
 	http.ListenAndServe(":8001", nil)
+}
+
+func loadEnvVars() {
+	godotenv.Load()
 }
 
 func readFont() *truetype.Font {
@@ -54,6 +62,7 @@ func staticHandler() http.Handler {
 }
 
 func homePage(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(os.Getenv("TEST_VARIABLE"))
 	err := htmlTemplates.ExecuteTemplate(w, "index", nil)
 	if err != nil {
 		panic(err)
