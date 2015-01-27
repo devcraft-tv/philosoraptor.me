@@ -10,12 +10,14 @@ import (
 	"code.google.com/p/freetype-go/freetype"
 	"code.google.com/p/freetype-go/freetype/truetype"
 	"github.com/devcraft-tv/philosoraptor/annotator"
+	"github.com/devcraft-tv/philosoraptor/uploader"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 )
 
 var font *truetype.Font
 var templateFile []byte
+var fileUploader *uploader.S3Uploader
 
 var htmlTemplates *template.Template
 
@@ -25,6 +27,7 @@ func main() {
 	font = readFont()
 	templateFile = readTemplateFile()
 	loadEnvVars()
+	setUpS3Uploader()
 
 	router.HandleFunc("/", homePage)
 	router.HandleFunc("/generate", handleForm).Methods("POST")
@@ -35,6 +38,15 @@ func main() {
 
 func loadEnvVars() {
 	godotenv.Load()
+}
+
+func setUpS3Uploader() {
+	fileUploader = &uploader.S3Uploader{
+		AccessId:        os.Getenv("AWS_ACCESS_KEY_ID"),
+		SecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		Bucket:          os.Getenv("S3_BUCKET"),
+		Path:            os.Getenv("S3_BUCKET_PATH"),
+	}
 }
 
 func readFont() *truetype.Font {
@@ -80,7 +92,10 @@ func handleForm(w http.ResponseWriter, r *http.Request) {
 	}
 
 	imageData := annotator.Annotate(upperText, lowerText)
+	url, err := fileUploader.Upload(imageData, "test")
+	if err != nil {
+		panic(err)
+	}
 
-	w.Header().Set("Content-Type", "image/jpeg")
-	w.Write([]byte(imageData))
+	http.Redirect(w, r, url, 301)
 }
