@@ -1,6 +1,8 @@
 package uploader
 
 import (
+	"log"
+
 	"github.com/mitchellh/goamz/aws"
 	"github.com/mitchellh/goamz/s3"
 )
@@ -23,7 +25,10 @@ func (uploader S3Uploader) Upload(data []byte, fileName string) (url string, err
 	bucket := s3.Bucket{s3Client, uploader.Bucket}
 	filePath := uploader.Path + fileName + "." + fileType
 
-	bucket.Put(filePath, data, dataType, acl)
+	err = bucket.Put(filePath, data, dataType, acl)
+	if err != nil {
+		log.Println(err)
+	}
 	url = s3RootUrl + "/" + uploader.Bucket + "/" + filePath
 
 	return

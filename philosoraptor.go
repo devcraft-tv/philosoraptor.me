@@ -1,11 +1,14 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"text/template"
+
+	"crypto/md5"
 
 	"code.google.com/p/freetype-go/freetype"
 	"code.google.com/p/freetype-go/freetype/truetype"
@@ -91,11 +94,19 @@ func handleForm(w http.ResponseWriter, r *http.Request) {
 		FontColor: "#000000",
 	}
 
+	fileName := hash(upperText + lowerText)
+
 	imageData := annotator.Annotate(upperText, lowerText)
-	url, err := fileUploader.Upload(imageData, "test")
+	url, err := fileUploader.Upload(imageData, fileName)
 	if err != nil {
 		panic(err)
 	}
 
 	http.Redirect(w, r, url, 301)
+}
+
+func hash(text string) (hashedText string) {
+	t := md5.Sum([]byte(text))
+	hashedText = hex.EncodeToString(t[:])
+	return
 }
