@@ -13,6 +13,7 @@ import (
 	"code.google.com/p/freetype-go/freetype"
 	"code.google.com/p/freetype-go/freetype/truetype"
 	"github.com/devcraft-tv/philosoraptor/annotator"
+	"github.com/devcraft-tv/philosoraptor/cache"
 	"github.com/devcraft-tv/philosoraptor/uploader"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
@@ -21,6 +22,13 @@ import (
 var font *truetype.Font
 var templateFile []byte
 var fileUploader *uploader.S3Uploader
+
+type Cacher interface {
+	Get(string) (string, error)
+	Set(string, string) (bool, error)
+}
+
+var cacheDb Cacher
 
 var htmlTemplates *template.Template
 
@@ -31,6 +39,7 @@ func main() {
 	templateFile = readTemplateFile()
 	loadEnvVars()
 	setUpS3Uploader()
+	setUpCache()
 
 	router.HandleFunc("/", homePage)
 	router.HandleFunc("/generate", handleForm).Methods("POST")
@@ -41,6 +50,17 @@ func main() {
 
 func loadEnvVars() {
 	godotenv.Load()
+}
+
+func setUpCache() {
+	connectionString := os.Getenv("REDIS_CONNECTION_STRING")
+	password := os.Getenv("REDIS_PASSWORD")
+
+	var err error
+	cacheDb, err = cache.NewCache(connectionString, password)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func setUpS3Uploader() {
@@ -95,11 +115,21 @@ func handleForm(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fileName := hash(upperText + lowerText)
+	var url string
+	url, _ = cacheDb.Get(fileName)
 
-	imageData := annotator.Annotate(upperText, lowerText)
-	url, err := fileUploader.Upload(imageData, fileName)
-	if err != nil {
-		panic(err)
+	if url == "" {
+		imageData := annotator.Annotate(upperText, lowerText)
+		var err error
+		url, err = fileUploader.Upload(imageData, fileName)
+
+		if err == nil {
+			_, err = cacheDb.Set(fileName, url)
+		}
+
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	http.Redirect(w, r, url, 301)
