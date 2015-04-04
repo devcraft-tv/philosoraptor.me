@@ -107,20 +107,18 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 func handleForm(w http.ResponseWriter, r *http.Request) {
 	upperText := r.FormValue("upper_text")
 	lowerText := r.FormValue("lower_text")
-	annotator := annotator.Annotator{
-		Font:      font,
-		SrcFile:   templateFile,
-		FontSize:  60,
-		FontColor: "#000000",
-	}
+	annotator := newAnnotator()
+	var err error
 
 	fileName := hash(upperText + lowerText)
-	var url string
-	url, _ = cacheDb.Get(fileName)
+	url, err := cacheDb.Get(fileName)
+
+	if err != nil {
+		panic(err)
+	}
 
 	if url == "" {
 		imageData := annotator.Annotate(upperText, lowerText)
-		var err error
 		url, err = fileUploader.Upload(imageData, fileName)
 
 		if err == nil {
@@ -139,4 +137,13 @@ func hash(text string) (hashedText string) {
 	t := md5.Sum([]byte(text))
 	hashedText = hex.EncodeToString(t[:])
 	return
+}
+
+func newAnnotator() annotator.Annotator {
+	return annotator.Annotator{
+		Font:      font,
+		SrcFile:   templateFile,
+		FontSize:  60,
+		FontColor: "#000000",
+	}
 }
