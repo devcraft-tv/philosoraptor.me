@@ -22,6 +22,12 @@ import (
 var font *truetype.Font
 var templateFile []byte
 var fileUploader *uploader.S3Uploader
+var uploadChan chan UploadData = make(chan UploadData, 10)
+
+type UploadData struct {
+	ImageData []byte
+	FileName  string
+}
 
 type Cacher interface {
 	Get(string) (string, error)
@@ -40,6 +46,7 @@ func main() {
 	loadEnvVars()
 	setUpS3Uploader()
 	setUpCache()
+	go asyncUploader()
 
 	router.HandleFunc("/", homePage)
 	router.HandleFunc("/generate", handleForm).Methods("POST")
@@ -119,15 +126,8 @@ func handleForm(w http.ResponseWriter, r *http.Request) {
 
 	if url == "" {
 		imageData := annotator.Annotate(upperText, lowerText)
-		url, err = fileUploader.Upload(imageData, fileName)
-
-		if err == nil {
-			_, err = cacheDb.Set(fileName, url)
-		}
-
-		if err != nil {
-			panic(err)
-		}
+		ud := UploadData{imageData, fileName}
+		uploadChan <- ud
 	}
 
 	http.Redirect(w, r, url, 301)
@@ -145,5 +145,16 @@ func newAnnotator() annotator.Annotator {
 		SrcFile:   templateFile,
 		FontSize:  60,
 		FontColor: "#000000",
+	}
+}
+
+func asyncUploader() {
+	for data := range uploadChan {
+		url, err := fileUploader.Upload(data.ImageData, data.FileName)
+		if err != nil {
+			panic(err)
+		} else {
+			_, err = cacheDb.Set(data.FileName, url)
+		}
 	}
 }
