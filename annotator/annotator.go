@@ -39,18 +39,18 @@ func (a Annotator) Annotate(upperText string, lowerText string) []byte {
 	c.SetDst(imageMask)
 	c.SetClip(imageMaskClip)
 
-	drawLines := func(line string, point raster.Point) {
-		c.DrawString(line, point)
-	}
-
 	upperPoint := freetype.Pt(10, 40)
 	lowerPoint := freetype.Pt(10, srcHeight-10)
 
-	drawLines(upperText, upperPoint)
-	drawLines(lowerText, lowerPoint)
+	drawLines(c, upperText, upperPoint)
+	drawLines(c, lowerText, lowerPoint)
 
 	dataBuffer := bytes.NewBuffer([]byte(""))
 	jpeg.Encode(dataBuffer, imageMask, nil)
 
 	return dataBuffer.Bytes()
+}
+
+func drawLines(context *freetype.Context, line string, point raster.Point) {
+	context.DrawString(line, point)
 }
