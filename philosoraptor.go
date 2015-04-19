@@ -128,6 +128,10 @@ func handleForm(w http.ResponseWriter, r *http.Request) {
 		imageData := annotator.Annotate(upperText, lowerText)
 		ud := UploadData{imageData, fileName}
 		uploadChan <- ud
+
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Write([]byte(imageData))
+		return
 	}
 
 	http.Redirect(w, r, url, 301)
