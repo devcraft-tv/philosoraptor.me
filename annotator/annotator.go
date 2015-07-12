@@ -9,6 +9,7 @@ import (
 	"code.google.com/p/freetype-go/freetype"
 	"code.google.com/p/freetype-go/freetype/raster"
 	"code.google.com/p/freetype-go/freetype/truetype"
+	"github.com/devcraft-tv/philosoraptor/line_breaker"
 	"github.com/lucasb-eyer/go-colorful"
 )
 
@@ -39,11 +40,25 @@ func (a Annotator) Annotate(upperText string, lowerText string) []byte {
 	c.SetDst(imageMask)
 	c.SetClip(imageMaskClip)
 
-	upperPoint := freetype.Pt(10, 40)
-	lowerPoint := freetype.Pt(10, srcHeight-10)
+	margin := 10
+	leftPoint := margin
+	topPoint := margin
 
-	drawLines(c, upperText, upperPoint)
-	drawLines(c, lowerText, lowerPoint)
+	lineHeight := int(a.FontSize)
+	simpleLineBreaker := line_breaker.SimpleLineBreaker{}
+
+	upperLines := simpleLineBreaker.GetLines(upperText, 30)
+	for idx, line := range upperLines {
+		point := freetype.Pt(leftPoint, topPoint+(lineHeight*(idx+1)))
+		drawLines(c, line, point)
+	}
+
+	lowerLines := simpleLineBreaker.GetLines(lowerText, 30)
+	lowerTopPoint := srcHeight - margin - len(lowerLines)*lineHeight
+	for idx, line := range lowerLines {
+		point := freetype.Pt(leftPoint, lowerTopPoint+(lineHeight*(idx+1)))
+		drawLines(c, line, point)
+	}
 
 	dataBuffer := bytes.NewBuffer([]byte(""))
 	jpeg.Encode(dataBuffer, imageMask, nil)
